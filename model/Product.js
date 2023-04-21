@@ -9,6 +9,9 @@ module.exports = (sequelize, Sequelize) => {
         sub_category_id : {
             type : Sequelize.INTEGER,
         },
+        contact_no : {
+            type : Sequelize.STRING
+        },
         name: {
             type: Sequelize.STRING
         },

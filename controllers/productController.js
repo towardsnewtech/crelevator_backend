@@ -238,6 +238,103 @@ exports.updateSubCategory = async (req, res) => {
   }
 }
 
+exports.updateProduct = async (req, res) => {
+  try {
+    const { id, name, imagedata, availability, specifications, features, price, contact_no } = req.body;
+
+    if(!imagedata) {
+      Product.update(
+        { 
+          name,
+          availability,
+          specifications,
+          features,
+          price,
+          contact_no
+        },
+        { where: { id } }
+      )
+      .then((result) => {
+        Product.findByPk(id).then((updatedProduct) => {
+          res.status(200).json({ ...updatedProduct.dataValues, success: true, imageUrl: 'images/products/' + updatedProduct.image  });
+        });
+      })
+    } else {
+      let base64Image = imagedata.split(';base64,').pop();
+      let buf = Buffer.from(base64Image, 'base64');
+      const imageName = crypto.randomBytes(16).toString("hex");
+      
+      Product.findOne({
+        where: {
+          id: id
+        }
+      }).then(product => {
+        if(product) {
+          fs.unlink(path.join(__dirname, '../public/images/products/', product.image), (err) => {
+            if (err) throw err;
+            fs.writeFile(path.join(__dirname, '../public/images/products/', imageName + ".png"), buf, function(error) {
+              if (error) {
+                throw error;
+              } else {
+                Product.update(
+                  { 
+                    name,
+                    image: imageName + ".png",
+                    availability,
+                    features,
+                    specifications,
+                    price,
+                    contact_no
+                  },
+                  { where: { id: id } }
+                )
+                .then((result) => {
+                  Product.findByPk(id).then((updatedProduct) => {
+                    res.status(200).json({  ...updatedProduct.dataValues , success: true, imageUrl: 'images/products/' + updatedProduct.image });
+                  });
+                })
+              }
+            });
+          });
+        }
+      });
+    }
+  } catch(err) {
+    console.log(err);
+  }
+}
+
+exports.getProductById = async (req, res) => {
+  const { id } = req.body;
+
+  try {
+    Product.findByPk(id).then((product) => {
+      res.status(200).json({ success: true, product : product });
+    });
+  } catch(err) {
+    console.log(err);
+    return;
+  }
+}
+
+exports.getProductListBySubCategoryId = async (req, res) => {
+  try {
+    const { id } = req.body;
+    
+    Product.findAll({
+      where : {
+        sub_category_id : id
+      }
+    }).then(products => {
+      res.status(200).json({ success: true, products: products });
+    }).catch(err => {
+        console.log(err);
+    });
+  } catch(err) {
+    console.log(err) ;
+    return ;
+  }
+}
 exports.deleteProduct = async (req, res) => {
   try {
     const {id} = req.body;
@@ -264,6 +361,7 @@ exports.deleteProduct = async (req, res) => {
     console.log(err)
   }
 }
+
 exports.deleteSubCategory = async (req, res) => {
   const { id } = req.body;
 

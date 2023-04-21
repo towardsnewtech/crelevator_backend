@@ -36,6 +36,8 @@ router.post('/api/subcategory/delete', productController.deleteSubCategory);
 router.get('/api/product/getAll', productController.getProductList);
 router.post('/api/product/deleteProduct', productController.deleteProduct);
 router.post('/api/product/addProduct', productController.addProduct);
-
+router.post('/api/product/update', productController.updateProduct);
+router.post('/api/product/bySubCategory', productController.getProductListBySubCategoryId);
+router.post('/api/product/byId', productController.getProductById);
 
 module.exports = router;

@@ -1,7 +1,7 @@
 exports.server = {
-  	port: 4040,
-	host: 'localhost',
-	phost: 'localhost',
+    port: 5000,
+    host: '127.0.0.1',
+    phost: '127.0.0.1',
 
     serverUrl() {
         return `http://${this.phost}:${this.port}`;
@@ -12,7 +12,7 @@ exports.server = {
 };
 
 exports.database = {
-    host: "localhost",
+    host: "127.0.0.1",
     user: "root",
     password: "",
     db: "crelevator",
