@@ -1,35 +1,37 @@
 module.exports = (sequelize, Sequelize) => {
-    const Admin = sequelize.define("Admin", {
+    const EmailSet = sequelize.define("emailset", {
         id: {
             type: Sequelize.INTEGER,
             primaryKey: true,
             autoIncrement: true,
             allowNull: false
         },
-        first_name: {
-            type: Sequelize.STRING
+        type: {
+            type: Sequelize.INTEGER
         },
-        last_name: {
-            type: Sequelize.STRING
+        name: {
+            type: Sequelize.STRING,
         },
         email: {
             type: Sequelize.STRING,
-            
         },
         password: {
-            type: Sequelize.STRING,
-        },
-        token: {
             type: Sequelize.STRING
         },
-        photo: {
+        emailserver: {
             type: Sequelize.STRING
+        },
+        emailuser: {
+            type: Sequelize.STRING
+        },
+        isused: {
+            type: Sequelize.BOOLEAN
         }
     },{
         sequelize,
         freezeTableName: true,
-        tableName: 'admins'
+        tableName: 'email_set'
     });
 
-    return Admin;
+    return EmailSet;
 };

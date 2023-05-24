@@ -5,56 +5,91 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { Op } = require("sequelize");
+const Buffer = require('buffer').Buffer;
+const fs = require('fs');
+const path = require('path');
+const uuid = require('uuid') ;
+const { sendEmail } = require('../common');
 
 const User = db.User;
 const UserAddress = db.UserAddress;
+const EmailSet = db.EmailSet;
 
 exports.signUP = async (req, res) => {
-    const email = req.body.email;
 
+    const { imagedata } = req.body;
+
+    let base64Image = imagedata.split(';base64,').pop();
+    let buf = Buffer.from(base64Image, 'base64');
+    const imageName = crypto.randomBytes(16).toString("hex");
+
+    if (imagedata != 'no image') {
+
+        fs.writeFile(path.join(__dirname, '../public/images/photo/', imageName + ".png"), buf, function(error) {
+            if (error) {
+            throw error;
+            }
+        })
+    }
+    
     const newUser = {
         first_name: req.body.first_name,
         last_name: req.body.last_name,
         email: req.body.email,
         password: req.body.password,
+        account_type: req.body.account_type
     };
     const encryptedPassword = await bcrypt.hash(newUser.password, 10);
 
     const data = await User.findAll({ where: { email: req.body.email } })
     if (data.length !== 0) {
-        res.json({ success: false, msg: "This email already exists." })
+        return res.json({ success: false, msg: "This email already exists." })
     }
+    const emailverifytoken = uuid.v4() ;
+
     newUser.password = encryptedPassword;
+    newUser.emailverifytoken = emailverifytoken;
     const newCreateUser = await User.create(newUser);
 
     await UserAddress.create( {
         user_id: newCreateUser.id,
+        photo: imagedata != 'no image' ? imageName + ".png" : ''
     });
 
-    // Create token
-    const token = jwt.sign(
-        { user_id: newCreateUser.id, email },
-        "myScrt",
-        {
-            expiresIn: "16h",
-        }
-    );
-    
     const responseUser = {
         id: newCreateUser.id,
         first_name: newCreateUser.first_name,
         last_name: newCreateUser.last_name,
         email: newCreateUser.email,
-        token: token,
+        emailverifytoken: emailverifytoken
     }
-    res.status(200).json({ success: true, data: responseUser })
+
+    EmailSet.findOne({where: {isused : true}}).then(data => {
+        if (data.dataValues.type == 1) {
+            sendEmail(emailverifytoken, req.body.email, data.dataValues, 'Click below link to verify your email for crelevator.com')
+            return res.status(200).json({ success: true, data: responseUser, type: data.dataValues.type })
+        }
+    })
+    
+    return res.status(200).json({ success: true, data: responseUser, type: 0 })
 }
 
 exports.signIn = (req, res) => {
     const { email, password } = req.body;
     try {
-        User.findOne({where: { email: email }}).then(async (user) => {
+        User.findOne(
+            {
+                include: [{
+                    model: db.UserAddress,
+                    required: false // use left join
+                }],
+                where: { email: email }
+            }
+        ).then(async (user) => {
             if (user) {
+                if (user.isemailverified == false) {
+                    return res.json({ success: false, msg: 'Please verify your email!' })
+                }
                 if (await bcrypt.compare(password, user.password)) {
                     // Create token
                     const token = jwt.sign(
@@ -140,53 +175,34 @@ exports.updateAddress = (req, res) => {
     }
 }
 
-exports.forgotPassword = (req, res) => {
+exports.forgotPassword = async (req, res) => {
     
     const { email } = req.body;
-    User.findOne({where: { email: email }}).then(async (user) => {
+    var resetpasswordtoken = uuid.v4();
+    
+    await User.update({
+        resetpasswordtoken
+    }, {where: { email: email }}).then(async (user) => {
+        if(user == 1) {
+            data = await EmailSet.findOne({where: {isused : true}})
+            if (data.dataValues.type == 1) {
+                sendEmail(resetpasswordtoken, email, data.dataValues, 'Click below link to reset your password for crelevator.com')
+                return res.json({ success: true, type: 1 })
+            }
+
+            res.json({success: true, resetpasswordtoken, type: 0});
+        } else {
+            res.json({success: false, msg: 'Email Not Exist!', type: -1});
+        }
+    })
+}
+
+exports.verifyEmailForPassword = async (req, res) => {
+    
+    const { id } = req.body;
+
+    await User.findOne({where: { resetpasswordtoken: id }}).then(async (user) => {
         if(user) {
-            const toten = crypto.randomBytes(16).toString('hex')
-            await User.update({token:toten}, {
-                where: { id: user.dataValues.id }
-            })
-            
-            const subject = 'EasyPrez - Demande de modification de mot de passe';
-            const link = `https://www.easyprez.fr/resetPW/${toten}`;
-            const html = `<div style='text-align: center; max-width: 768px; margin: 0 auto;'> 
-                            <p>Bonjour ${user.first_name} ${user.name},</p>
-                            <p>Une demande de modification de mot de passe a récemment été faite pour votre compte EasyPrez</p>
-                            <p>Cliquez sur ce lien pour modifier le mot de passe.</p>
-                            <a href=${link} target='_blank' style='padding: 10px 14px; background-color: rgb(0, 107, 107); color: white; border-radius: 4px; text-decoration: none; text-transform: uppercase;'>Cliquer ici</a>
-                        </div>`;
-
-            var transport = nodemailer.createTransport({
-                host: config.emailServer, // Amazon email SMTP hostname
-                secureConnection: true, // use SSL
-                port: 465, // port for secure SMTP
-                auth: {
-                    user: config.emailUser, // Use from Amazon Credentials
-                    pass: config.emailPasswd // Use from Amazon Credentials
-                }
-            });
-            
-            var mailOptions = {
-                from: config.adminEmail, // sender address
-                to: email, // list of receivers
-                subject: subject, // Subject line
-                html: html // email body
-            };
-
-            // send mail with defined transport object
-            transport.sendMail(mailOptions, function(error, response){
-                if(error){
-                    console.log(error);
-                }else{
-                    res.status(200).json({ success: true, msg: `A verification email has been sent to ${email}.`});
-                }
-
-                transport.close(); // shut down the connection pool, no more messages
-            });
-
             res.json({success: true});
         } else {
             res.json({success: false});
@@ -195,17 +211,17 @@ exports.forgotPassword = (req, res) => {
 }
 
 exports.resetPassword = async (req, res) => {
-    const {token,password} = req.body
+    const {id,password} = req.body
     const encryptedPassword = await bcrypt.hash(password, 10);
-    let user = await User.findOne({where: { token: token }});
+    let user = await User.findOne({where: { resetpasswordtoken: id }});
+    
     if(!user){
-        res.status(401).json({ success: false, msg: "Incorrect Token"});
+        res.json({ success: false, msg: "Incorrect Email"});
     }else{
         await User.update({password:encryptedPassword}, {
-            where: { id: user.dataValues.id }
-          })
-          res.json({success:true,msg:"Success reset your Password"})
-        
+            where: { resetpasswordtoken: id }
+        })
+        res.json({success:true, msg:"New Password set Successfully!"})
     }
    
 }
@@ -241,4 +257,100 @@ exports.deleteUsers = async (req, res) => {
         console.error(err);
         res.status(500).json({ error: 'Could not delete users' });
     }
-  };
+};
+
+exports.verifyEmail = async (req, res) => {
+    try {
+        const { id } = req.body;
+
+        var user = await User.findOne({where: {emailverifytoken: id}})
+        const token = jwt.sign(
+            { id: user.id, email: user.email },
+            "myScrt",
+            {
+                expiresIn: "16h",
+            }
+        );
+
+        await User.update({
+            isemailverified: true
+        }, { where: { emailverifytoken: id }}).then(() => {
+            res.json({
+                success: true, 
+                data: {
+                    id: user.id, 
+                    email: user.email, 
+                    first_name: user.first_name, 
+                    last_name: user.last_name
+                },
+                token: token
+            });
+        });
+
+    } catch (error) {
+        console.log(error) ;
+    }
+}
+
+exports.UpdateEmailInfo = async (req, res) => {
+    try {
+        if (req.body.type == true) {
+            EmailSet.update({
+                isused: false
+            }, { where: { type: 0 }})
+
+            EmailSet.update({
+                email: req.body.email
+            }, {where: { type: 0 }})
+
+            EmailSet.update({
+                name: req.body.name,
+                email: req.body.email,
+                password: req.body.password,
+                emailserver: req.body.emailserver,
+                emailuser: req.body.emailuser,
+                isused: true
+            }, { where: { type: 1 }}).then(user => {
+                console.log(user);
+                res.json({success: true});
+            });
+        } else {
+            EmailSet.update({
+                isused: false
+            }, { where: { type: 1 }})
+
+            EmailSet.update({
+                isused: true
+            }, { where: { type: 0 }}).then(user => {
+                res.json({success: true});
+            })
+        }
+
+    } catch (error) {
+        console.log(error) ;
+    }
+}
+
+exports.LoadEmailInfo = async (req, res) => {
+    try {
+        
+        EmailSet.findOne({where: {isused: true}}).then(data => {
+            res.json({success: true, data: data.dataValues})
+        })
+
+    } catch (error) {
+        console.log(error) ;
+    }
+}
+
+exports.LoadSMTPInfo = async (req, res) => {
+    try {
+        
+        EmailSet.findOne({where: {type: 1}}).then(data => {
+            res.json({success: true, data: data.dataValues})
+        })
+
+    } catch (error) {
+        console.log(error) ;
+    }
+}

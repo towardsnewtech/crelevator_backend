@@ -14,14 +14,22 @@ module.exports = (sequelize, Sequelize) => {
         },
         email: {
             type: Sequelize.STRING,
-            
         },
         password: {
             type: Sequelize.STRING,
         },
-        token: {
+        emailverifytoken: {
             type: Sequelize.STRING
         },
+        isemailverified: {
+            type: Sequelize.BOOLEAN
+        },
+        resetpasswordtoken: {
+            type: Sequelize.STRING
+        },
+        account_type: {
+            type: Sequelize.INTEGER
+        }
     },{
         sequelize,
         freezeTableName: true,

@@ -32,6 +32,9 @@ module.exports = (sequelize, Sequelize) => {
         },
         phone: {
             type: Sequelize.STRING
+        },
+        photo: {
+            type: Sequelize.STRING
         }
     },{
         sequelize,

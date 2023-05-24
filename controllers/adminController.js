@@ -5,12 +5,30 @@ const bcrypt = require('bcryptjs');
 const db = require('../model/index');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const Buffer = require('buffer').Buffer;
+const fs = require('fs');
+const path = require('path');
 
 const Admin = db.Admin;
+const User = db.User;
 const UserAddress = db.UserAddress;
 
 exports.signUP = async (req, res) => {
+    const { imagedata } = req.body;
+
+    let base64Image = imagedata.split(';base64,').pop();
+    let buf = Buffer.from(base64Image, 'base64');
+    const imageName = crypto.randomBytes(16).toString("hex");
+
+    if (imagedata != 'no image') {
+
+        fs.writeFile(path.join(__dirname, '../public/images/photo/', imageName + ".png"), buf, function(error) {
+            if (error) {
+            throw error;
+            }
+        })
+    }
+
     const email = req.body.email;
 
     const newAdmin = {
@@ -18,12 +36,13 @@ exports.signUP = async (req, res) => {
         last_name: req.body.last_name,
         email: req.body.email,
         password: req.body.password,
+        photo: imagedata != 'no image' ? imageName + ".png" : ''
     };
     const encryptedPassword = await bcrypt.hash(newAdmin.password, 10);
 
     const data = await Admin.findAll({ where: { email: req.body.email } })
     if (data.length !== 0) {
-        res.json({ success: false, msg: "This email already exists." })
+        return res.json({ success: false, msg: "This email already exists." })
     }
     newAdmin.password = encryptedPassword;
     const newCreateAdmin = await Admin.create(newAdmin);
@@ -106,52 +125,16 @@ exports.changePassword = async (req, res) => {
     }
 }
 
-exports.forgotPassword = (req, res) => {
-    
+exports.forgotPassword = async (req, res) => {
     const { email } = req.body;
+
+    const encryptedPassword = await bcrypt.hash("111", 10);
     Admin.findOne({where: { email: email }}).then(async (user) => {
         if(user) {
             const toten = crypto.randomBytes(16).toString('hex')
-            await Admin.update({token:toten}, {
-                where: { id: Admin.dataValues.id }
+            await Admin.update({password: encryptedPassword}, {
+                where: { email: email }
             })
-            
-            const subject = 'EasyPrez - Demande de modification de mot de passe';
-            const link = `https://www.easyprez.fr/resetPW/${toten}`;
-            const html = `<div style='text-align: center; max-width: 768px; margin: 0 auto;'> 
-                            <p>Bonjour ${Admin.first_name} ${Admin.name},</p>
-                            <p>Une demande de modification de mot de passe a récemment été faite pour votre compte EasyPrez</p>
-                            <p>Cliquez sur ce lien pour modifier le mot de passe.</p>
-                            <a href=${link} target='_blank' style='padding: 10px 14px; background-color: rgb(0, 107, 107); color: white; border-radius: 4px; text-decoration: none; text-transform: uppercase;'>Cliquer ici</a>
-                        </div>`;
-
-            var transport = nodemailer.createTransport({
-                host: config.emailServer, // Amazon email SMTP hostname
-                secureConnection: true, // use SSL
-                port: 465, // port for secure SMTP
-                auth: {
-                    user: config.emailUser, // Use from Amazon Credentials
-                    pass: config.emailPasswd // Use from Amazon Credentials
-                }
-            });
-            
-            var mailOptions = {
-                from: config.adminEmail, // sender address
-                to: email, // list of receivers
-                subject: subject, // Subject line
-                html: html // email body
-            };
-
-            // send mail with defined transport object
-            transport.sendMail(mailOptions, function(error, response){
-                if(error){
-                    console.log(error);
-                }else{
-                    res.status(200).json({ success: true, msg: `A verification email has been sent to ${email}.`});
-                }
-
-                transport.close(); // shut down the connection pool, no more messages
-            });
 
             res.json({success: true});
         } else {
@@ -174,4 +157,29 @@ exports.resetPassword = async (req, res) => {
         
     }
    
+}
+
+exports.getUserinfo = async (req, res) => {
+    try {
+        await User.findOne(
+            {
+                include: [{
+                    model: db.UserAddress,
+                    required: false // use left join
+                }],
+                where: { id: parseInt(req.body.user_id) }
+            }
+        )
+        .then(async (user) => {
+            res.status(200).json({
+                status: "success",
+                data : user.dataValues
+            })
+        })
+        .catch(err => {
+            console.log(err)
+        })
+    } catch(err){
+        console.log(err)
+    }
 }

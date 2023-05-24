@@ -308,7 +308,13 @@ exports.getProductById = async (req, res) => {
   const { id } = req.body;
 
   try {
-    Product.findByPk(id).then((product) => {
+    Product.findOne({
+      include: [{
+        model: db.SubCategory,
+        required: false // use left join
+      }],
+      where: {id}
+    }).then((product) => {
       res.status(200).json({ success: true, product : product });
     });
   } catch(err) {
@@ -320,13 +326,22 @@ exports.getProductById = async (req, res) => {
 exports.getProductListBySubCategoryId = async (req, res) => {
   try {
     const { id } = req.body;
+    console.log(id);
+
+    let tmp = await SubCategory.findOne({where: {id}});
+    if ( tmp == null ) {
+      return res.json({ success: false })
+    }
+    let category_id = tmp.dataValues.category_id;
+    let category = await Category.findOne({where: {id : category_id}});
+    let category_name = category.dataValues.name;
     
     Product.findAll({
       where : {
         sub_category_id : id
       }
     }).then(products => {
-      res.status(200).json({ success: true, products: products });
+      res.status(200).json({ success: true, products: products, category_name: category_name });
     }).catch(err => {
         console.log(err);
     });
