@@ -6,6 +6,7 @@ const userController = require('./controllers/userController');
 const adminController = require('./controllers/adminController');
 const productController = require('./controllers/productController');
 const extrasController = require('./controllers/extrasController');
+const cartController = require('./controllers/cartController') ;
 
 //user route
 router.post('/api/user/signup', userController.signUP);
@@ -61,5 +62,9 @@ router.post('/api/extras/news/delete', extrasController.deleteNews);
 router.post('/api/extras/pdf/delete', extrasController.deletePdf);
 router.post('/api/extras/quote-request', extrasController.quoteRequest);
 router.post('/api/extras/cres', extrasController.cresRequest);
+
+router.post('/api/cart/add', cartController.addCart) ;
+router.post('/api/cart/get', cartController.getCart) ;
+router.post('/api/cart/remove', cartController.removeCart) ;
 
 module.exports = router;

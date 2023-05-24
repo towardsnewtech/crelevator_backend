@@ -27,6 +27,7 @@ db.Faq = require("./Faq.js")(sequelize, Sequelize);
 db.News = require("./News.js")(sequelize, Sequelize);
 db.Pdf = require("./Pdf.js")(sequelize, Sequelize);
 db.EmailSet = require('./EmailSet')(sequelize, Sequelize);
+db.Cart = require('./Cart')(sequelize, Sequelize) ;
 
 db.Category.hasMany(db.SubCategory, { foreignKey: 'category_id' });
 db.SubCategory.belongsTo(db.Category, { foreignKey: 'category_id' });
@@ -35,5 +36,10 @@ db.Product.belongsTo(db.SubCategory, { foreignKey: 'sub_category_id' });
 
 db.User.hasOne(db.UserAddress, { foreignKey: 'user_id' });
 db.UserAddress.belongsTo(db.User, { foreignKey: 'user_id' });
+
+db.Cart.belongsTo(db.User, {foreignKey: 'userid'});
+db.User.hasMany(db.Cart, {foreignKey: 'userid'}) ;
+db.Cart.belongsTo(db.Product, {foreignKey: 'productid'});
+db.Product.hasMany(db.Cart, {foreignKey: 'productid'});
 
 module.exports = db;
