@@ -47,7 +47,6 @@ exports.signUP = async (req, res) => {
     newAdmin.password = encryptedPassword;
     const newCreateAdmin = await Admin.create(newAdmin);
 
-    // Create token
     const token = jwt.sign(
         { user_id: newCreateAdmin.id, email },
         "myScrt",
@@ -72,7 +71,6 @@ exports.signIn = (req, res) => {
         Admin.findOne({where: { email: email }}).then(async (user) => {
             if (user) {
                 if (await bcrypt.compare(password, user.password)) {
-                    // Create token
                     const token = jwt.sign(
                         { user_id: user._id, email },
                         "myScrt",
@@ -80,7 +78,6 @@ exports.signIn = (req, res) => {
                             expiresIn: "16h",
                         }
                     );
-                    // user
                     res.json({user, token: token, success: true});
                 } else {
                     res.json({ success: false, msg: "The password is incorrect."});
@@ -131,7 +128,6 @@ exports.forgotPassword = async (req, res) => {
     const encryptedPassword = await bcrypt.hash("111", 10);
     Admin.findOne({where: { email: email }}).then(async (user) => {
         if(user) {
-            const toten = crypto.randomBytes(16).toString('hex')
             await Admin.update({password: encryptedPassword}, {
                 where: { email: email }
             })
