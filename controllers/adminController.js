@@ -1,6 +1,3 @@
-const Sequelize = require('sequelize');
-const config = require('../config');
-
 const bcrypt = require('bcryptjs');
 const db = require('../model/index');
 const jwt = require('jsonwebtoken');
@@ -11,7 +8,6 @@ const path = require('path');
 
 const Admin = db.Admin;
 const User = db.User;
-const UserAddress = db.UserAddress;
 
 exports.signUP = async (req, res) => {
     const { imagedata } = req.body;
