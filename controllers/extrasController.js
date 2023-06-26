@@ -267,10 +267,10 @@ exports.cresRequest = async (req, res) => {
         })
 
         var mailOptions = {
-            from: `CR Elevator Supply <${req.body.email}>`, // sender address
-            to: smtpInfo.email, // list of receivers
-            subject: subject, // Subject line
-            html: html // email body
+            from: `CR Elevator Supply <${req.body.email}>`, 
+            to: smtpInfo.email, 
+            subject: subject, 
+            html: html 
         };
         console.log(req.body.email, smtpInfo)
 
