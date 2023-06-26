@@ -8,8 +8,6 @@ const Product = db.Product;
 const Category = db.Category;
 const SubCategory = db.SubCategory;
 
-// Category
-
 exports.addCategory = async (req, res) => {
   const { name, imagedata } = req.body;
 
@@ -35,7 +33,7 @@ exports.getCategories = async (req, res) => {
   Category.findAll({
       include: [{
           model: db.SubCategory,
-          required: false // use left join
+          required: false 
       }]
   }).then(categories => {
     res.status(200).json({ success: true, categories: categories });
@@ -115,8 +113,6 @@ exports.deleteCategory = async (req, res) => {
     }
   });
 }
-
-// Sub Category
 
 exports.addSubCategory = async (req, res) => {
   const { name, imagedata, category_id } = req.body;

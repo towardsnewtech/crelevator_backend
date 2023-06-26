@@ -35,7 +35,7 @@ exports.getCart = async (req, res) => {
             include: [
                 {
                     model: db.User,
-                    required: false // use left join
+                    required: false 
                 },
                 {
                     model: db.Product,
